@@ -1,3 +1,11 @@
+type Composite = { rel:number; qual:number; safe:number; comm:number; pct:number; band:string };
+function compute(): Composite { /* existing body unchanged */ }
+function json(comp: Composite) { /* existing body unchanged */ }
+function update() {
+  const c: Composite = compute();
+  // ...rest stays the same
+}
+
 'use client';
 // @ts-nocheck
 import { useEffect } from 'react';
