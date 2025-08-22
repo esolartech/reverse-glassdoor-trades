@@ -1,93 +1,103 @@
-type Composite = { rel:number; qual:number; safe:number; comm:number; pct:number; band:string };
-function compute(): Composite { /* existing body unchanged */ }
-function json(comp: Composite) { /* existing body unchanged */ }
-function update() {
-  const c: Composite = compute();
-  // ...rest stays the same
-}
-
 'use client';
-// @ts-nocheck
+
 import { useEffect } from 'react';
+
+// Types
+type Composite = {
+  rel: number; qual: number; safe: number; comm: number; pct: number; band: string;
+};
+
+// Small helpers
+const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export default function Home() {
   useEffect(() => {
-    const $ = (id: string) => document.getElementById(id)!;
-    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
     const minutesLateToScore = (m: number) =>
       m <= 0 ? 5 : m >= 45 ? 1 : m >= 30 ? 2 : m >= 15 ? 3 : m >= 5 ? 4 : 5;
 
-    function compute() {
+    function compute(): Composite {
       const W = { rel: 0.30, qual: 0.35, safe: 0.15, comm: 0.20 };
-      const noShow = ($('f_noshow') as HTMLInputElement).checked;
-      const late = Number(($('f_late') as HTMLInputElement).value || 0);
+
+      const noShow = (($('f_noshow') as HTMLInputElement)?.checked) ?? false;
+      const late = Number((($('f_late') as HTMLInputElement)?.value) ?? 0);
       const rel = noShow ? 0 : minutesLateToScore(late);
 
-      let qual = Number(($('f_work') as HTMLInputElement).value || 0);
-      if (($('f_callback') as HTMLInputElement).checked) qual -= 1.5;
-      if (!($('f_punch') as HTMLInputElement).checked) qual -= 0.5;
+      let qual = Number((($('f_work') as HTMLInputElement)?.value) ?? 0);
+      if (($('f_callback') as HTMLInputElement)?.checked) qual -= 1.5;
+      if (!($('f_punch') as HTMLInputElement)?.checked) qual -= 0.5;
       qual = clamp(qual, 0, 5);
 
-      let safe = Number(($('f_ppe') as HTMLInputElement).value || 0);
-      if (($('f_incident') as HTMLInputElement).checked) safe = Math.max(0, safe - 3);
+      let safe = Number((($('f_ppe') as HTMLInputElement)?.value) ?? 0);
+      if (($('f_incident') as HTMLInputElement)?.checked) safe = Math.max(0, safe - 3);
       safe = clamp(safe, 0, 5);
 
-      const comm = Number(($('f_prof') as HTMLInputElement).value || 0);
+      const comm = Number((($('f_prof') as HTMLInputElement)?.value) ?? 0);
+
       const pct = Math.round(((rel * W.rel + qual * W.qual + safe * W.safe + comm * W.comm) / 5) * 100);
       const band = pct >= 90 ? 'Elite' : pct >= 75 ? 'Strong' : pct >= 60 ? 'Solid' : pct >= 40 ? 'Developing' : 'At Risk';
       return { rel, qual, safe, comm, pct, band };
     }
 
-    function json(comp: any) {
+    function json(comp: Composite): string {
       return JSON.stringify({
         meta: { schema: 'reverse-glassdoor.v1', createdAt: new Date().toISOString() },
         job: {
-          date: ( $('f_date') as HTMLInputElement ).value,
-          trade: ( $('f_trade') as HTMLSelectElement ).value,
-          role:  ( $('f_role') as HTMLSelectElement ).value,
-          type:  ( $('f_type') as HTMLSelectElement ).value
+          date: ( $('f_date') as HTMLInputElement )?.value,
+          trade: ( $('f_trade') as HTMLSelectElement )?.value,
+          role:  ( $('f_role') as HTMLSelectElement )?.value,
+          type:  ( $('f_type') as HTMLSelectElement )?.value
         },
-        worker: { name: ( $('f_worker') as HTMLInputElement ).value },
+        worker: { name: ( $('f_worker') as HTMLInputElement )?.value },
         metrics: {
-          reliability: { minutesLate: Number(( $('f_late') as HTMLInputElement ).value||0), noShow: ( $('f_noshow') as HTMLInputElement ).checked },
-          quality:     { workmanship: Number(( $('f_work') as HTMLInputElement ).value||0), callback: ( $('f_callback') as HTMLInputElement ).checked, punchlistResolved: ( $('f_punch') as HTMLInputElement ).checked },
-          safety:      { incident: ( $('f_incident') as HTMLInputElement ).checked, ppeAdherence: Number(( $('f_ppe') as HTMLInputElement ).value||0) },
-          communication:{ professionalism: Number(( $('f_prof') as HTMLInputElement ).value||0) },
-          customer:    { rating: Number(( $('f_cs') as HTMLInputElement ).value||0) }
+          reliability: { minutesLate: Number(( $('f_late') as HTMLInputElement )?.value ?? 0), noShow: ( $('f_noshow') as HTMLInputElement )?.checked ?? false },
+          quality:     { workmanship: Number(( $('f_work') as HTMLInputElement )?.value ?? 0), callback: ( $('f_callback') as HTMLInputElement )?.checked ?? false, punchlistResolved: ( $('f_punch') as HTMLInputElement )?.checked ?? true },
+          safety:      { incident: ( $('f_incident') as HTMLInputElement )?.checked ?? false, ppeAdherence: Number(( $('f_ppe') as HTMLInputElement )?.value ?? 0) },
+          communication:{ professionalism: Number(( $('f_prof') as HTMLInputElement )?.value ?? 0) },
+          customer:    { rating: Number(( $('f_cs') as HTMLInputElement )?.value ?? 0) }
         },
         composite: { score: comp.pct, band: comp.band },
-        notes: ( $('f_notes') as HTMLTextAreaElement ).value.slice(0,240),
+        notes: ( $('f_notes') as HTMLTextAreaElement )?.value?.slice(0,240) ?? '',
         attestation: 'Submitted in good faith; job record on file.'
       }, null, 2);
     }
 
     function update() {
-      const c = compute();
-      $('bar').style.width = c.pct + '%';
+      const c: Composite = compute();
+      ($('bar') as HTMLDivElement).style.width = `${c.pct}%`;
       $('pct').textContent = String(c.pct);
       $('band').textContent = c.band;
-      $('s_rel').textContent = c.rel + '/5';
-      $('s_qual').textContent = c.qual + '/5';
-      $('s_safe').textContent = c.safe + '/5';
-      $('s_comms').textContent = c.comm + '/5';
+      $('s_rel').textContent = `${c.rel}/5`;
+      $('s_qual').textContent = `${c.qual}/5`;
+      $('s_safe').textContent = `${c.safe}/5`;
+      $('s_comms').textContent = `${c.comm}/5`;
       $('jsonOut').textContent = json(c);
     }
 
+    // Bind inputs
     const ids = ['f_worker','f_trade','f_role','f_date','f_type','f_late','f_noshow','f_callback','f_punch','f_work','f_incident','f_ppe','f_prof','f_cs','f_notes'];
-    ids.forEach(id => $(id).addEventListener('input', update));
-    ids.forEach(id => $(id).addEventListener('change', update));
-    (document.getElementById('copyBtn') as HTMLButtonElement)?.addEventListener('click', async () => {
-      await navigator.clipboard.writeText($('jsonOut').textContent || '');
-      (document.getElementById('copyBtn') as HTMLButtonElement).textContent = 'Copied!';
-      setTimeout(() => ((document.getElementById('copyBtn') as HTMLButtonElement).textContent = 'Copy'), 1200);
+    ids.forEach(id => {
+      const el = $(id);
+      el?.addEventListener('input', update);
+      el?.addEventListener('change', update);
     });
 
-    // defaults
+    // Defaults
     const d = $('f_date') as HTMLInputElement;
-    if (!d.value) {
-      const t = new Date(); d.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+    if (d && !d.value) {
+      const t = new Date();
+      d.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
     }
-    document.getElementById('year')!.textContent = String(new Date().getFullYear());
+    const yearEl = document.getElementById('year');
+    if (yearEl) yearEl.textContent = String(new Date().getFullYear());
+
+    // Copy button
+    (document.getElementById('copyBtn') as HTMLButtonElement)?.addEventListener('click', async () => {
+      await navigator.clipboard.writeText($('jsonOut').textContent || '');
+      const btn = document.getElementById('copyBtn') as HTMLButtonElement;
+      btn.textContent = 'Copied!'; setTimeout(() => (btn.textContent = 'Copy'), 1200);
+    });
+
     update();
   }, []);
 
